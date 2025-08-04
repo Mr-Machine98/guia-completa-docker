@@ -1119,3 +1119,206 @@ docker-compose build
 
 
 
+
+
+## Docker HUB, compartir nuestro proyecto con otros colaboradores
+Docker posee una especie de github si no que es destinada a guardar `imagenes` en vez de codigo. Debemos tener creado un repo para subir nuestras imagenes. Las imagenes subidas al repo deben tener el mismo nombre del repo.
+
+Ejemplo mi repo se llama `milomilon/curso-kubernetes-usuarios`, debo colocar mi imagen con este nombre antes de ser subida. Pero como yo tengo una imagen con distinto nombre y quiero reutilizar esta misma podria renombrarla con el siguiente comando.
+
+```ps
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$ docker images
+REPOSITORY                     TAG         IMAGE ID       CREATED       SIZE
+curso-kubernetes-ms-cursos     latest      6256d668d0ec   7 days ago    388MB
+curso-kubernetes-ms-usuarios   latest      0c8b081ff830   7 days ago    390MB
+mysql                          8           b70b5fdff899   12 days ago   786MB
+postgres                       14-alpine   85d838f07d62   8 weeks ago   272MB
+
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$ docker tag curso-kubernetes-ms-usuarios milomilon/curso-kubernetes-usuarios
+
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$ docker images
+REPOSITORY                            TAG         IMAGE ID       CREATED       SIZE
+curso-kubernetes-ms-cursos            latest      6256d668d0ec   7 days ago    388MB
+curso-kubernetes-ms-usuarios          latest      0c8b081ff830   7 days ago    390MB
+milomilon/curso-kubernetes-usuarios   latest      0c8b081ff830   7 days ago    390MB
+mysql                                 8           b70b5fdff899   12 days ago   786MB
+postgres                              14-alpine   85d838f07d62   8 weeks ago   272MB
+
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$
+```
+Observe que se creo un clon de la `imagen`.
+
+luego antes de subir debemos logearnos en consola:
+
+```ps
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$ docker login
+Authenticating with existing credentials... [Username: milomilon]
+
+i Info → To login with a different account, run 'docker logout' followed by 'docker login'
+
+
+Login Succeeded
+
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$ 
+```
+y finalizando enviamos nuestra imagen
+
+```ps
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$ docker push milomilon/curso-kubernetes-usuarios
+Using default tag: latest
+The push refers to repository [docker.io/milomilon/curso-kubernetes-usuarios]
+bb88ae69d3bb: Pushed
+1c9ec839cde2: Pushed
+4e3c9223860d: Pushed
+34f7184834b2: Mounted from library/openjdk
+5836ece05bfd: Mounted from library/openjdk
+72e830a4dff5: Mounted from library/openjdk
+latest: digest: sha256:6ade10c72c06a8588fabde27c3a50f2ece413a5b707998f75b8cda91b2ce775d size: 1576
+
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$
+```
+# Recuperar images haciendo pull de las imagenes
+Por ejemplo si quiero descargar la imagen que acabe de subir:
+```ps
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$ docker pull milomilon/curso-kubernetes-usuarios
+Using default tag: latest
+latest: Pulling from milomilon/curso-kubernetes-usuarios
+5843afab3874: Already exists
+53c9466125e4: Already exists
+d8d715783b80: Already exists
+534ccbfcf566: Already exists
+588a8bc1791e: Already exists
+916157821e91: Already exists
+Digest: sha256:6ade10c72c06a8588fabde27c3a50f2ece413a5b707998f75b8cda91b2ce775d
+Status: Downloaded newer image for milomilon/curso-kubernetes-usuarios:latest
+docker.io/milomilon/curso-kubernetes-usuarios:latest
+
+Whats next:
+    View a summary of image vulnerabilities and recommendations → docker scout quickview milomilon/curso-kubernetes-usuarios
+
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$ docker images
+REPOSITORY                            TAG       IMAGE ID       CREATED      SIZE
+milomilon/curso-kubernetes-usuarios   latest    0c8b081ff830   7 days ago   390MB
+
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$
+```
+
+## Como obtener la imagen remotamente desde el docker-compose?
+
+debemos modificar nuestro archivo de manifiesto para poder descargar las imagenes remotamente usando del docker compose, lea los comentarios y comparas que modificamos, veras que hacemos referencia a los repos de las imagenes
+```yml
+version: "3.9"
+
+services:
+
+   mysql8:
+      #Agregamos nombres
+      container_name: mysql8
+      image: mysql:8
+      ports:
+         - "3307:3306"
+      environment:
+         MYSQL_ROOT_PASSWORD: admin
+         MYSQL_DATABASE: ms_usuarios
+      volumes:
+         - data-mysql:/var/lib/mysql
+      restart: always
+      networks:
+         - spring
+   
+   postgres14:
+      #Agregamos nombres
+      container_name: postgres14
+      image: postgres:14-alpine
+      ports:
+         - "5433:5432"
+      environment:
+         POSTGRES_PASSWORD: admin
+         POSTGRES_DB: ms_cursos
+      volumes:
+         - data-postgres:/var/lib/postgresql/data
+      restart: always
+      networks:
+         - spring
+   
+   ms-usuarios:
+      #Agregamos nombres
+      container_name: ms-usuarios
+      # Hacemos referencia a la imagen remota
+      image: milomilon/curso-kubernetes-usuarios
+      # borramos build para poder hacer referencia a la imagen remota desde dockerhub
+      #build:
+         #context: ./
+         #dockerfile: ./ms-usuarios/dockerfile
+      ports:
+         - "8001:8001"
+      env_file: ./ms-usuarios/.env
+      networks:
+         - spring
+      depends_on:
+         - mysql8
+      restart: always
+      
+   ms-cursos:
+      #Agregamos nombres
+      # Hacemos referencia a la imagen remota
+      image: milomilon/curso-kubernetes-cursos
+      container_name: ms-cursos
+      # borramos build para poder hacer referencia a la imagen remota desde dockerhub
+      #build:
+         #context: ./
+         #dockerfile: ./ms-cursos/dockerfile
+      ports:
+         - "8002:8002"
+      env_file:
+         - ./ms-cursos/.env
+      networks:
+         - spring
+      depends_on:
+         - postgres14
+         - ms-usuarios
+      restart: always
+volumes:
+   data-mysql:
+      # Podemos reutilizar un volumen ya existente y lo usamos colocando su nombre
+      name: data-mysql
+   data-postgres:
+      # Podemos reutilizar un volumen ya existente y lo usamos colocando su nombre
+      name: data-postgres
+networks:
+   spring:
+```
+Luego levantamos:
+
+```ps
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$ docker-compose up -d
+time="2025-08-03T19:04:34-05:00" level=warning msg="D:\\Eclipse\\workspace2\\curso-kubernetes\\docker-compose.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+[+] Running 32/32
+ ✔ postgres14 Pulled                                                                                   12.7s 
+ ✔ ms-cursos Pulled                                                                                     2.6s 
+ ✔ ms-usuarios Pulled                                                                                   1.9s 
+ ✔ mysql8 Pulled                                                                                       18.4s 
+time="2025-08-03T19:04:52-05:00" level=warning msg="volume \"data-mysql\" already exists but was not created by Docker Compose. Use `external: true` to use an existing volume"
+time="2025-08-03T19:04:52-05:00" level=warning msg="volume \"data-postgres\" already exists but was not created by Docker Compose. Use `external: true` to use an existing volume"
+[+] Running 5/5
+ ✔ Network curso-kubernetes_spring  Created                                                             0.1s 
+ ✔ Container postgres14             Started                                                             2.4s 
+ ✔ Container mysql8                 Started                                                             2.3s 
+ ✔ Container ms-usuarios            Started                                                             0.8s 
+ ✔ Container ms-cursos              Started                                                             1.0s 
+
+mrmac@machine98 MINGW64 /d/Eclipse/workspace2/curso-kubernetes (master)
+$
+```
