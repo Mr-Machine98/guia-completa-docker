@@ -1,7 +1,7 @@
 # Docker Guide
 
 Este es una guia de docker, del curso de java Microservicios Gui'a Completa de Docker & Kubernetes.
-> [!NOTA]
+> [!NOTE]
 > Comandos y configuraciones basadas en un contenido de microservicios de la siguiente forma:  
 ```text
                    ┌──────────────┐           ┌──────────────┐
